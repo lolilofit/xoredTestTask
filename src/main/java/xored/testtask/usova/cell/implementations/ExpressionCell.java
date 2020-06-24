@@ -11,29 +11,83 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Stack;
 
+
+//rewrite!
 public class ExpressionCell extends Cell {
     //expression consists of operands as String and Operations
     private LinkedList<Object> expression = new LinkedList<>();
 
-    private Integer evalStringOperand(String operand, Table table) {
+    @Override
+    public Object getValue(Table table) {
+
+        if(state.equals(CellState.VISITED))
+            return value;
+
+        Stack<Object> stack = new Stack<>();
+
+        Integer firstOperand;
+        Object operationResult;
+
+        super.state = CellState.IN_PROCESSING;
+
+        for (Object expressionPart : expression) {
+            if (expressionPart instanceof Operation) {
+                operationResult = processOperation(stack, (Operation) expressionPart, table);
+
+                if (operationResult == null)
+                    break;
+
+                stack.push(operationResult);
+            } else {
+                firstOperand = parseSingleOperand(expressionPart, table);
+
+                if (firstOperand == null)
+                    break;
+
+                stack.push(firstOperand);
+            }
+        }
+
+        super.state = CellState.VISITED;
+
+        if(!error) {
+            value = stack.pop();
+            return value;
+        }
+        return null;
+    }
+
+
+    private Integer getReferenceCellValue(Cell cell, Table table) {
+        if(cell.getState() == CellState.IN_PROCESSING) {
+            setError("CycleReference");
+            return null;
+        }
+        if(cell.isError()) {
+            setError("ErrorReference");
+            return null;
+        }
+
+        Object cellValue = cell.getValue(table);
+        if(cellValue instanceof Integer)
+            return (Integer) cellValue;
+        return null;
+    }
+
+    private Integer parseSingleOperand(Object objectOperand, Table table) {
+        if(objectOperand instanceof Integer)
+            return (Integer) objectOperand;
+
+        if(!(objectOperand instanceof  String)) {
+            setError("WrongSyntax");
+            return null;
+        }
+
+        String operand = (String) objectOperand;
         Integer cellCoords = table.convertCellNumber(operand);
 
         if(cellCoords >= 0) {
-            Cell cell = table.getCell(cellCoords);
-
-            if(cell.getState() == CellState.IN_PROCESSING) {
-                setError("CycleReference");
-                return null;
-            }
-            if(cell.isError()) {
-                setError("ErrorReference");
-                return null;
-            }
-
-            Object cellValue = cell.getValue(table);
-            if(cellValue instanceof Integer)
-                return (Integer) cellValue;
-            return null;
+            return getReferenceCellValue(table.getCell(cellCoords), table);
         }
         else {
             try {
@@ -45,67 +99,26 @@ public class ExpressionCell extends Cell {
         }
     }
 
-    private Integer processOperand(Object listObject, Table table) {
-        if(listObject instanceof Integer)
-            return (Integer) listObject;
+    private Object processOperation(Stack<Object> stack, Operation operation, Table table) {
+        LinkedList<Integer> operands = new LinkedList<>();
+        Object objectOperand;
+        Integer singleOperand;
 
-        if(!(listObject instanceof  String)) {
-            setError("WrongSyntax");
+        for(int i = 0; i < operation.getOperandsNum(); i++) {
+            objectOperand = stack.pop();
+            singleOperand = parseSingleOperand(objectOperand, table);
+
+            if(singleOperand == null)
+                return null;
+            operands.addFirst(singleOperand);
+        }
+
+        objectOperand = operation.eval(operands.toArray(new Integer[0]));
+        if(objectOperand == null) {
+            setError("EvaluationError");
             return null;
         }
-        return evalStringOperand((String)listObject, table);
-    }
-
-    @Override
-    public Object getValue(Table table) {
-
-        if(state.equals(CellState.VISITED))
-            return value;
-
-        Stack<Object> stack = new Stack<>();
-
-        Integer firstOperand;
-        Integer secondOperand;
-        Object expressionPart;
-        Object objectOperand;
-
-        super.state = CellState.IN_PROCESSING;
-
-        for (int i = 0; i < expression.size(); i++) {
-            expressionPart = expression.get(i);
-
-            //refactor1!!!
-            if(expressionPart instanceof Operation) {
-                objectOperand = stack.pop();
-                secondOperand = processOperand(objectOperand, table);
-                if(secondOperand == null)
-                    break;
-
-                objectOperand = stack.pop();
-                firstOperand = processOperand(objectOperand, table);
-                if(firstOperand == null)
-                    break;
-
-                objectOperand = ((Operation) expressionPart).eval(firstOperand, secondOperand);
-                if(objectOperand == null) {
-                    setError("EvaluationError");
-                    break;
-                }
-
-                stack.push(objectOperand);
-            }
-            else {
-                firstOperand = processOperand(expressionPart, table);
-                if(firstOperand == null)
-                    break;
-                stack.push(firstOperand);
-            }
-        }
-
-        super.state = CellState.VISITED;
-
-        value = stack.pop();
-        return value;
+        return objectOperand;
     }
 
     private void addOperation(Stack<Operation> stack, Operation operation) {
@@ -121,9 +134,8 @@ public class ExpressionCell extends Cell {
     }
 
     private void freeOperationStack(Stack<Operation> stack) {
-        while(!stack.isEmpty()) {
+        while(!stack.isEmpty())
             expression.add(stack.pop());
-        }
     }
 
     @Override
@@ -132,6 +144,9 @@ public class ExpressionCell extends Cell {
         if(str.length() == 0)
             return;
 
+        List<String> operationsSymbols = new ArrayList<>(CellsInfo.getOperations());
+        List<Integer> cur = new ArrayList<>();
+
         Stack<Operation> stack = new Stack<>();
         Operation curOperation;
 
@@ -139,11 +154,8 @@ public class ExpressionCell extends Cell {
         int minPos = -1;
         int prevMinCur = -1;
 
-        List<String> operationsSymbols = new ArrayList<>(CellsInfo.getOperations());
-        List<Integer> cur = new ArrayList<>();
-
-        for(int i = 0; i < operationsSymbols.size(); i ++)
-            cur.add(str.indexOf(operationsSymbols.get(i)));
+        for (String operationsSymbol : operationsSymbols)
+            cur.add(str.indexOf(operationsSymbol));
 
         do {
             prevMinCur = minCur;

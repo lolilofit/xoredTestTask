@@ -3,8 +3,11 @@ package xored.testtask.usova.cell;
 import xored.testtask.usova.cell.implementations.EmptyCell;
 
 import java.lang.reflect.InvocationTargetException;
+import java.util.logging.Logger;
 
 public class CellFabric {
+    private static Logger logger = Logger.getLogger(CellFabric.class.getName());
+
     public Cell getCell(String firstSymbol, String value) {
         Cell cell;
         try {
@@ -21,8 +24,8 @@ public class CellFabric {
                 | InvocationTargetException e) {
             cell = new EmptyCell();
             cell.setError("CreationError");
-            //log
-            e.printStackTrace();
+
+            logger.info(e.getMessage());
         }
         return cell;
     }

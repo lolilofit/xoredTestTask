@@ -3,16 +3,20 @@ package xored.testtask.usova.mvc.consoleimpl;
 import xored.testtask.usova.Table;
 import xored.testtask.usova.cell.Cell;
 import xored.testtask.usova.cell.CellFabric;
+import xored.testtask.usova.cell.CellsInfo;
 import xored.testtask.usova.mvc.Controller;
 import xored.testtask.usova.mvc.Model;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.logging.Logger;
 
 public class ConsoleController implements Controller {
     private Model model;
     private CellFabric cellFabric = new CellFabric();
+
+    private static Logger logger = Logger.getLogger(ConsoleController.class.getName());
 
     @Override
     public Table readTable() {
@@ -42,7 +46,7 @@ public class ConsoleController implements Controller {
                 for(int j = 0; j < tableLine.length; j++) {
                     line = tableLine[j];
                     cell = cellFabric.getCell(line.substring(0, 1), line);
-                    table.addCell(i*width + j, cell);
+                    table.addCell(cell);
                 }
             }
 
@@ -50,7 +54,7 @@ public class ConsoleController implements Controller {
 
             return table;
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.info(e.getMessage());
         }
         return null;
     }

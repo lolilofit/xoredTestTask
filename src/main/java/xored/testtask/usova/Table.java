@@ -20,8 +20,7 @@ public class Table {
         cells = new ArrayList<>();
     }
 
-    //refactor!!!
-    public void addCell(int coord, Cell cell) {
+    public void addCell(Cell cell) {
         cells.add(cell);
     }
 
