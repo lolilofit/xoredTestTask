@@ -2,184 +2,186 @@ package xored.testtask.usova.cell.implementations;
 
 import xored.testtask.usova.Table;
 import xored.testtask.usova.cell.Cell;
+import xored.testtask.usova.cell.CellException;
 import xored.testtask.usova.cell.CellState;
 import xored.testtask.usova.cell.CellsInfo;
 import xored.testtask.usova.operations.Operation;
+import xored.testtask.usova.operations.OperationException;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Stack;
 
-
-//rewrite!
+//cell with expresion value
 public class ExpressionCell extends Cell {
-    //expression consists of operands as String and Operations
-    private LinkedList<Object> expression = new LinkedList<>();
+    private String expressionString;
 
-    @Override
-    public Object getValue(Table table) {
+    //cell supports operations with different priorities
+    private Stack<Integer> operands = new Stack<>();
+    private Stack<Operation> operations = new Stack<>();
 
-        if(state.equals(CellState.VISITED))
-            return value;
+    //load all operations
+    private List<String> operationsSymbols = new ArrayList<>(CellsInfo.getOperations());
 
-        Stack<Object> stack = new Stack<>();
-
-        Integer firstOperand;
-        Object operationResult;
-
-        super.state = CellState.IN_PROCESSING;
-
-        for (Object expressionPart : expression) {
-            if (expressionPart instanceof Operation) {
-                operationResult = processOperation(stack, (Operation) expressionPart, table);
-
-                if (operationResult == null)
-                    break;
-
-                stack.push(operationResult);
-            } else {
-                firstOperand = parseSingleOperand(expressionPart, table);
-
-                if (firstOperand == null)
-                    break;
-
-                stack.push(firstOperand);
-            }
-        }
-
-        super.state = CellState.VISITED;
-
-        if(!error) {
-            value = stack.pop();
-            return value;
-        }
-        return null;
-    }
-
-
-    private Integer getReferenceCellValue(Cell cell, Table table) {
-        if(cell.getState() == CellState.IN_PROCESSING) {
-            setError("CycleReference");
-            return null;
-        }
-        if(cell.isError()) {
-            setError("ErrorReference");
-            return null;
-        }
-
-        Object cellValue = cell.getValue(table);
-        if(cellValue instanceof Integer)
-            return (Integer) cellValue;
-        return null;
-    }
-
-    private Integer parseSingleOperand(Object objectOperand, Table table) {
-        if(objectOperand instanceof Integer)
-            return (Integer) objectOperand;
-
-        if(!(objectOperand instanceof  String)) {
-            setError("WrongSyntax");
-            return null;
-        }
-
-        String operand = (String) objectOperand;
-        Integer cellCoords = table.convertCellNumber(operand);
-
-        if(cellCoords >= 0) {
-            return getReferenceCellValue(table.getCell(cellCoords), table);
-        }
-        else {
-            try {
-                return Integer.parseInt(operand);
-            } catch (NumberFormatException  e) {
-                setError("ErrorCellType");
-                return null;
-            }
-        }
-    }
-
-    private Object processOperation(Stack<Object> stack, Operation operation, Table table) {
-        LinkedList<Integer> operands = new LinkedList<>();
-        Object objectOperand;
-        Integer singleOperand;
-
-        for(int i = 0; i < operation.getOperandsNum(); i++) {
-            objectOperand = stack.pop();
-            singleOperand = parseSingleOperand(objectOperand, table);
-
-            if(singleOperand == null)
-                return null;
-            operands.addFirst(singleOperand);
-        }
-
-        objectOperand = operation.eval(operands.toArray(new Integer[0]));
-        if(objectOperand == null) {
-            setError("EvaluationError");
-            return null;
-        }
-        return objectOperand;
-    }
-
-    private void addOperation(Stack<Operation> stack, Operation operation) {
-        if(stack.isEmpty()) {
-            stack.push(operation);
-            return;
-        }
-
-        while(stack.peek().getPrior() >= operation.getPrior())
-            expression.add(stack.pop());
-
-        stack.push(operation);
-    }
-
-    private void freeOperationStack(Stack<Operation> stack) {
-        while(!stack.isEmpty())
-            expression.add(stack.pop());
-    }
-
+    //save expression in cell
     @Override
     public void init(String str) {
         str = str.substring(1);
-        if(str.length() == 0)
-            return;
+        expressionString = str;
+    }
 
-        List<String> operationsSymbols = new ArrayList<>(CellsInfo.getOperations());
+    //calculate value of cell with two stacks
+    @Override
+    public Object getValue(Table table) {
+        //if value was calculated before => return value
+        if(state.equals(CellState.VISITED))
+            return value;
+
         List<Integer> cur = new ArrayList<>();
-
-        Stack<Operation> stack = new Stack<>();
         Operation curOperation;
 
+        Integer operandValue;
         int minCur = -1;
         int minPos = -1;
         int prevMinCur = -1;
 
+        //change state to detect cycles in cell references
+        super.state = CellState.IN_PROCESSING;
+
+        //find first indexes of operations in expression
         for (String operationsSymbol : operationsSymbols)
-            cur.add(str.indexOf(operationsSymbol));
+            cur.add(expressionString.indexOf(operationsSymbol));
 
-        do {
-            prevMinCur = minCur;
+        try {
+            //parse expression while there is at least one operation left
+            do {
+                prevMinCur = minCur;
 
-            minCur = -1;
-            for(int k = 0; k < cur.size(); k++) {
-                if(minCur == -1 || minCur > cur.get(k) && cur.get(k) > 0) {
-                    minCur = cur.get(k);
-                    minPos = k;
+                //find the smallest index of operation
+                minCur = -1;
+                for (int k = 0; k < cur.size(); k++) {
+                    if (minCur == -1 || minCur > cur.get(k) && cur.get(k) > 0) {
+                        minCur = cur.get(k);
+                        minPos = k;
+                    }
                 }
+
+                if (minCur != -1) {
+                    //extract operation from the expression
+                    curOperation = CellsInfo.getOperationBySymbol(expressionString.substring(minCur, minCur + 1));
+
+                    //parse operand before operation and get it's value
+                    operandValue = parseSingleOperand(expressionString.substring(prevMinCur + 1, minCur), table);
+
+                    //push to operands stack
+                    operands.push(operandValue);
+                    //push operation to operation stack
+                    addOperation(curOperation);
+
+                    //shift position to the next occurrence of current operation
+                    cur.set(minPos, expressionString.indexOf(operationsSymbols.get(minPos), minCur + 1));
+                }
+            } while (minCur != -1);
+
+            //parse the last operand
+            operands.add(
+                    parseSingleOperand(expressionString.substring(prevMinCur + 1), table
+                    ));
+            freeStack();
+
+            //get cell value
+            value = operands.pop();
+            if(!operands.isEmpty())
+                throw new CellException("WrongSyntax");
+
+        } catch (OperationException | CellException e) {
+            //if there was an error during calculation => save error cause
+            setError(e.getMessage());
+        }
+
+        super.state = CellState.VISITED;
+        return value;
+    }
+
+    private void freeStack() throws CellException, OperationException {
+        //make calculations with the est of operations in stack
+        while(!operations.empty()) {
+            Integer operationResult = processOperation(operations.pop());
+            operands.push(operationResult);
+        }
+    }
+
+    private Integer getReferenceCellValue(Cell cell, Table table) throws  CellException {
+        //detect cyclic references
+        if(cell.getState() == CellState.IN_PROCESSING)
+            throw new CellException("CycleReference");
+
+        if(cell.isError())
+            throw new CellException("ErrorReference");
+
+        Object cellValue = cell.getValue(table);
+
+        //check type of referenced cell value
+        if(cellValue instanceof Integer)
+            return (Integer) cellValue;
+
+        throw new CellException("WrongType");
+    }
+
+    //parse and get value of operand
+    private Integer parseSingleOperand(String operand, Table table) throws CellException {
+        //try to convert operand to cell reference
+        Integer cellCoords = table.convertCellNumber(operand);
+
+        if(cellCoords >= 0) {
+            //if there is a cell reference => get it's value
+            return getReferenceCellValue(table.getCell(cellCoords), table);
+        }
+        else {
+            //else operand should be represented as integer
+            try {
+                return Integer.parseInt(operand);
+            } catch (NumberFormatException  e) {
+                throw new CellException("WrongType");
             }
+        }
+    }
 
-            if(minCur != -1) {
-                curOperation = CellsInfo.getOperationBySymbol(str.substring(minCur, minCur + 1));
-                expression.add(str.substring(prevMinCur + 1, minCur));
-                addOperation(stack, curOperation);
+    //calculate the result of operation
+    private Integer processOperation(Operation operation) throws CellException, OperationException {
+        LinkedList<Integer> list = new LinkedList<>();
+        Integer singleOperand;
 
-                cur.set(minPos, str.indexOf(operationsSymbols.get(minPos), minCur + 1));
-            }
-        } while (minCur != -1);
+        //take n operands to calculate operation
+        for(int i = 0; i < operation.getOperandsNum(); i++) {
+            singleOperand = operands.pop();
 
-        expression.add(str.substring(prevMinCur + 1));
+            if(singleOperand == null)
+                throw new CellException("NullOperand");
+            list.addFirst(singleOperand);
+        }
 
-        freeOperationStack(stack);
+        //calculate operation
+        return operation.eval(list.toArray(new Integer[0]));
+    }
+
+    //add operation to the stack
+    private void addOperation(Operation operation) throws CellException, OperationException {
+        if(operations.isEmpty()) {
+            operations.push(operation);
+            return;
+        }
+
+        Integer operationResult;
+
+        //calculate operations that have >= priority than inserting operation
+        while(!operations.isEmpty() && operations.peek().getPrior() >= operation.getPrior()) {
+            operationResult = processOperation(operations.pop());
+            operands.push(operationResult);
+        }
+
+        operations.push(operation);
     }
 
     @Override

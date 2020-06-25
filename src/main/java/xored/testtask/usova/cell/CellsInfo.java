@@ -26,17 +26,25 @@ public class CellsInfo {
     private static Logger logger = Logger.getLogger(CellsInfo.class.getName());
 
     static {
+        //load pairs of first symbol in cell and name of class with corresponding type
+        //example: cell begins with '=' then it's expression cell
         cellsPackageName = loadPropertiesMap("src/main/resources/cell.properties", cellsMapping);
 
         Map<String, String> operationClassesName = new HashMap<>();
+        //load pairs with of operation symbol and operation class name
         String operationPackageName = loadPropertiesMap("src/main/resources/operation.properties", operationClassesName);
 
+        //create operation by class name
         try {
             for(Map.Entry<String, String> entry : operationClassesName.entrySet()) {
                 Class<?> loadedClass = Class.forName(operationPackageName + "." + entry.getValue());
                 operations.put(entry.getKey(), (Operation) loadedClass.getDeclaredConstructor().newInstance());
             }
-        } catch (ClassNotFoundException | IllegalAccessException | NoSuchMethodException | InvocationTargetException | InstantiationException e) {
+        } catch (ClassNotFoundException
+                | IllegalAccessException
+                | NoSuchMethodException
+                | InvocationTargetException
+                | InstantiationException e) {
             logger.info(e.getMessage());
         }
     }
@@ -76,6 +84,7 @@ public class CellsInfo {
         return "";
     }
 
+    //get all operations
     public static Set<String> getOperations() {
         return operations.keySet();
     }

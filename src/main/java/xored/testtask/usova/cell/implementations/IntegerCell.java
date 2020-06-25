@@ -4,6 +4,7 @@ import xored.testtask.usova.Table;
 import xored.testtask.usova.cell.Cell;
 import xored.testtask.usova.cell.CellState;
 
+//cell with integer value
 public class IntegerCell extends Cell {
 
     @Override

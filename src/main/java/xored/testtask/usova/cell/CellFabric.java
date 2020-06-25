@@ -8,6 +8,7 @@ import java.util.logging.Logger;
 public class CellFabric {
     private static Logger logger = Logger.getLogger(CellFabric.class.getName());
 
+    //create cell of particular type by the first character in cell
     public Cell getCell(String firstSymbol, String value) {
         Cell cell;
         try {
@@ -22,6 +23,8 @@ public class CellFabric {
                 | InstantiationException
                 | IllegalAccessException
                 | InvocationTargetException e) {
+
+            //if we could't create cell => create empty cell with error
             cell = new EmptyCell();
             cell.setError("CreationError");
 

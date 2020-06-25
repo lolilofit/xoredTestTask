@@ -10,6 +10,7 @@ import java.util.regex.Pattern;
 public class Table {
     private int width;
     private int heigh;
+    //list of cells with size width*heigh
     private List<Cell> cells;
 
 
@@ -24,10 +25,12 @@ public class Table {
         cells.add(cell);
     }
 
+    //convert number from format [A-Za-z][0-9] to number format (example - from B1 to 1)
     public Integer convertCellNumber(String coords) {
         Pattern pattern = Pattern.compile("[A-Za-z][0-9]", Pattern.CASE_INSENSITIVE);
         Matcher matcher = pattern.matcher(coords);
 
+        //check if given string have a right form
         if(!matcher.matches())
             return -1;
 
@@ -42,6 +45,7 @@ public class Table {
         return cells.get(coords);
     }
 
+    //calculate value of all cells
     public void calculate() {
         Cell cell;
 
@@ -55,10 +59,14 @@ public class Table {
     @Override
     public String toString() {
         StringBuilder result = new StringBuilder();
+        Object cellResult;
 
         for(int i = 0; i < heigh; i++) {
             for(int j = 0; j < width; j++) {
-                result.append(cells.get(i*width + j).toString()).append("\t");
+                cellResult = cells.get(i*width + j).toString();
+                if(cellResult != null)
+                    result.append(cellResult.toString());
+                result.append("\t");
             }
             result.append("\n");
         }

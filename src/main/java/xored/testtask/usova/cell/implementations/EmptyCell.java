@@ -3,6 +3,7 @@ package xored.testtask.usova.cell.implementations;
 import xored.testtask.usova.Table;
 import xored.testtask.usova.cell.Cell;
 
+//cell with nothing
 public class EmptyCell extends Cell {
 
     @Override

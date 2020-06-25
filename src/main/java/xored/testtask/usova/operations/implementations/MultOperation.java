@@ -1,15 +1,16 @@
 package xored.testtask.usova.operations.implementations;
 
 import xored.testtask.usova.operations.Operation;
+import xored.testtask.usova.operations.OperationException;
 
 public class MultOperation implements Operation {
     private static final Integer OPERANDS_NUM = 2;
     private static final Integer PRIOR = 2;
 
     @Override
-    public Integer eval(Integer... params) {
+    public Integer eval(Integer... params) throws OperationException {
         if(params.length != OPERANDS_NUM)
-            return null;
+            throw new OperationException("EvaluationError");
         return params[0] * params[1];
     }
 

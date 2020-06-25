@@ -5,6 +5,7 @@ import xored.testtask.usova.Table;
 public abstract class Cell {
     protected CellState state = CellState.UNVISITED;
     protected boolean error = false;
+
     protected Object value;
 
     public abstract Object getValue(Table table);
@@ -14,8 +15,10 @@ public abstract class Cell {
         return state;
     }
 
+    //if there was an error during creation or calculation => set error
     public void setError(String message) {
         error = true;
+        //message - error cause message
         value = "#" + message;
     }
 
